@@ -1,10 +1,15 @@
 package chronotable
 
-import "sync"
+import (
+	"sync"
+
+	"github.com/MridulDhiman/chronotable/internal/aof"
+)
 
 type ChronoTable struct {
 	M   map[string]interface{}
 	mtx sync.RWMutex
+	aof *aof.AOF
 }
 
 func (m *ChronoTable) Get(key string) (interface{}, bool) {
@@ -18,7 +23,9 @@ func (m *ChronoTable) Put(key string, value interface{}) {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 	m.M[key] = value
-
+	if m.aof != nil {
+	    m.aof.Log(aof.Format(key, value))
+	}
 }
 
 func (m *ChronoTable) Delete(key string) {
@@ -32,8 +39,14 @@ func (m *ChronoTable) Len() int {
 }
 
 
-func New() *ChronoTable {
-	return &ChronoTable{
+func New(opts *Options) *ChronoTable {
+	t:= &ChronoTable{
 		M: make(map[string]interface{}),
 	}
+
+	if opts.EnableAOF {
+		t.aof = aof.New(opts.AOFPath)
+	}
+
+	return t;
 }
