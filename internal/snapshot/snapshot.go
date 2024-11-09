@@ -13,8 +13,8 @@ import (
 )
 
 type SnapShot struct {
-	LatestVersion   *Version
-	VersionRegistry map[int]*Version
+	LatestVersion   int
+	VersionRegistry map[int]string
 }
 
 type Version struct {
@@ -26,36 +26,44 @@ type Version struct {
 
 func New() *SnapShot {
 	return &SnapShot{
-		VersionRegistry: make(map[int]*Version),
-		LatestVersion: &Version{
-			Id:        0,
-			Timestamp: time.Now(),
-			Data:      make(map[string]interface{}),
-		},
+		VersionRegistry: make(map[int]string),
+		LatestVersion: 0,
 	}
 }
 
 func (snapshot *SnapShot) Create(m map[string]any) (*Version, error) {
-	if snapshot.LatestVersion.Id != 0 {
-		if same := compareWithLatestVersion(snapshot.LatestVersion, m); same {
+	if snapshot.LatestVersion != 0 {
+		latestVersion, err := decodeVersionBinary(snapshot.VersionRegistry[snapshot.LatestVersion])
+		if err != nil {
+			return nil, err
+		}
+		if same := compareWithLatestVersion(latestVersion, m); same {
 			return nil, errors.New("no change since last snapshot")
 		}
 	}
-	newSnapshot, err := createSnapshot(snapshot.LatestVersion.Id, m)
+	newSnapshot, err := createSnapshot(snapshot.LatestVersion, m)
 	if err != nil {
 		return nil, err
 	}
-	snapshot.LatestVersion = newSnapshot
-	snapshot.VersionRegistry[newSnapshot.Id] = newSnapshot
+	snapshot.LatestVersion = newSnapshot.Id
+	snapshot.VersionRegistry[newSnapshot.Id] = newSnapshot.Path
 	return newSnapshot, nil
 }
 
 func (snapshot *SnapShot) GetVersion(version int) (*Version, bool) {
-	desiredVersion, ok := snapshot.VersionRegistry[version]
-	return desiredVersion, ok
+	versionFile, ok := snapshot.VersionRegistry[version]
+	if !ok {
+		return nil, false
+	}
+	desiredVersion, err := decodeVersionBinary(versionFile)
+	if err != nil {
+		fmt.Println("(error) GetVersion() could decode version binary", err)
+		return nil, false
+	}
+	return desiredVersion, true
 }
 
-func (snapshot *SnapShot) DecodeVersionBinary(versionFile string) (*Version, error) {
+func  decodeVersionBinary(versionFile string) (*Version, error) {
 	file, err := os.OpenFile(versionFile, os.O_RDONLY, os.FileMode(0644))
 	if err != nil {
 		return nil, err
