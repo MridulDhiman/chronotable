@@ -57,6 +57,23 @@ func (m *ChronoTable) Len() int {
 	return len(m.M)
 }
 
+func (m* ChronoTable) Clear() {
+	 m.mtx.Lock()
+	 defer m.mtx.Unlock()
+
+	 for k := range m.M {
+		delete (m.M, k)
+	 }
+}
+
+func (m *ChronoTable) Copy(m2 map[string]any) {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	for k,v := range m2 {
+		m.M[k] = v
+	}
+}
+
 func (m *ChronoTable) Commit() *snapshot.Version {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
@@ -71,3 +88,12 @@ func (m *ChronoTable) Commit() *snapshot.Version {
 func (m *ChronoTable) SnapshotEnabled() bool {
 	return m.snapshot == nil
 }
+
+func (m *ChronoTable) RollbackTo(version int) {
+	desiredVersion, ok := m.snapshot.GetVersion(version)
+	if ok {
+		m.Clear()
+		m.Copy(desiredVersion.Data)
+	}
+}
+

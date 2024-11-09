@@ -1,15 +1,13 @@
 # chronotable
-An in-memory hash table with time travel capabilities. chronotable combines the speed of in-memory operations with the reliability of disk persistence and the power of temporal queries.
-
-## Overview
-chronotable is designed for applications that need fast key-value operations while maintaining historical state changes. It enables developers to query past states, roll back changes, and maintain data version history without sacrificing performance.
+in-memory hash table implementation with AOF persistence and versioning via point-in-time snapshotting supporting rollbacks and querying past updates.
 
 ### Features
 - In-memory storage using a Go map
 - Thread safe operations via mutex locking.
 - Client side persistence with AOF(Append only file)
 - Snapshotting of the current state in binary file
+- Versioning to support rollbacks and querying past states
 
-### Current Targets
-- Versioning to enable rollbacks and time-travel
+### Todo
 - Upload snapshot and AOF files to object storage
+- Add AOF Markers to each version for AOF based rollbacks
