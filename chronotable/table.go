@@ -58,6 +58,8 @@ func (m *ChronoTable) Len() int {
 }
 
 func (m *ChronoTable) Commit() *snapshot.Version {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
 	newSnapShot, err := m.snapshot.Create(m.M)
 	if err != nil {
 		fmt.Println("Error in creating snapshot: ", err)

@@ -34,9 +34,7 @@ func New() *SnapShot {
 }
 
 func (snapshot *SnapShot) Create(m map[string]any) (*Version,error) {
-	fmt.Println("Create() fxn")
 	if snapshot.LatestVersion.Id != 0 {
-		fmt.Println("already a snapshot exist", len(snapshot.LatestVersion.Data))
 		if same := compareWithLatestVersion(snapshot.LatestVersion, m); same {
 			return nil, errors.New("no change since last snapshot")
 		}
@@ -47,15 +45,13 @@ func (snapshot *SnapShot) Create(m map[string]any) (*Version,error) {
 	 }
 	snapshot.LatestVersion = newSnapshot
 	snapshot.VersionRegistry[newSnapshot.Id] = newSnapshot
-	fmt.Println(len(snapshot.LatestVersion.Data))
 	return newSnapshot, nil
 }
 
 func createSnapshot(currentVersion int, m map[string]interface{}) (*Version, error) {
-	fmt.Println("createSnapShot()")
 	newVersion := &Version{
 		Timestamp: time.Now(),
-		Data:      m,
+		Data:      deepCopy(m),
 		Id:        currentVersion +1,
 	}
 	_path := path.Join("./", fmt.Sprintf("%d", currentVersion+ 1) + config.SNAPSHOT_EXT)
@@ -71,7 +67,6 @@ func createSnapshot(currentVersion int, m map[string]interface{}) (*Version, err
 }
 
 func compareWithLatestVersion(latestVersion *Version, m2 map[string]any) bool {
-	fmt.Println("compareWithLatestVersion()", latestVersion.Id)
 	m1 := latestVersion.Data
 	if len(m1) != len(m2) {
 		return false
@@ -82,7 +77,15 @@ func compareWithLatestVersion(latestVersion *Version, m2 map[string]any) bool {
 			return false
 		}
 	}
-
-	fmt.Println(len(m1), len(m2))
 	return true
 }
+
+
+func deepCopy(src map[string]interface{}) map[string]interface{} {
+    dst := make(map[string]interface{})
+    for k, v := range src {
+        dst[k] = v
+    }
+    return dst
+}
+

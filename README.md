@@ -7,9 +7,9 @@ chronotable is designed for applications that need fast key-value operations whi
 ### Features
 - In-memory storage using a Go map
 - Thread safe operations via mutex locking.
-- Client side persistence with AOF(Append only file).
+- Client side persistence with AOF(Append only file)
+- Snapshotting of the current state in binary file
 
 ### Current Targets
-- Snapshotting of the current state in binary file.
-- Versioning to enable rollbacks and time-travel.
-- Upload snapshot and AOF files to AWS S3.
+- Versioning to enable rollbacks and time-travel
+- Upload snapshot and AOF files to object storage
