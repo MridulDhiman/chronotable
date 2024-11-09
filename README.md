@@ -1,11 +1,15 @@
-# Chrono Table
-KV store with client side persistence to AOF with point-in-time snapshotting support.
+# chronotable
+An in-memory hash table with time travel capabilities. chronotable combines the speed of in-memory operations with the reliability of disk persistence and the power of temporal queries.
 
-### Features:
-- KV store which is storing data in hash table.
+## Overview
+chronotable is designed for applications that need fast key-value operations while maintaining historical state changes. It enables developers to query past states, roll back changes, and maintain data version history without sacrificing performance.
+
+### Features
+- In-memory storage using a Go map
 - Thread safe operations via mutex locking.
 - Client side persistence with AOF(Append only file).
 
-### Targets
-- Point in time snapshotting and versioning of the current state in binary file.
-- Expiring a particular sample of keys  via cron job running every 1 sec.
+### Current Targets
+- Snapshotting of the current state in binary file.
+- Versioning to enable rollbacks and time-travel.
+- Upload snapshot and AOF files to AWS S3.

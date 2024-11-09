@@ -10,8 +10,8 @@ import (
 )
 
 type AOF struct {
-	path string
-	file *os.File
+	path   string
+	file   *os.File
 	writer *bufio.Writer
 }
 
@@ -20,16 +20,16 @@ func New(path string) *AOF {
 	// File has user permissions set: 6(rw-)4(r--)4(r--)
 	file, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, fs.FileMode(0644))
 	if err != nil {
-		log.Fatal("Could not open file: ",err)
+		log.Fatal("Could not open file: ", err)
 	}
 	return &AOF{
-		file: file,
-		path : path,
+		file:   file,
+		path:   path,
 		writer: bufio.NewWriter(file),
 	}
 }
 
-func (aof* AOF) Log(operation string) error {
+func (aof *AOF) Log(operation string) error {
 	fmt.Println("operation: ", operation)
 	if _, err := aof.writer.WriteString(operation + "\n"); err != nil {
 		fmt.Println("could not write to file")
