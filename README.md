@@ -11,3 +11,4 @@ in-memory hash table implementation with AOF persistence and versioning via poin
 ### Todo
 - Upload snapshot and AOF files to object storage
 - Add AOF Markers to each version for AOF based rollbacks
+- make `ChronoTable` a Singleton instance
