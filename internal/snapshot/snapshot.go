@@ -15,6 +15,7 @@ import (
 type SnapShot struct {
 	LatestVersion   int
 	VersionRegistry map[int]string
+	CurrentVersion int
 }
 
 type Version struct {
@@ -22,16 +23,19 @@ type Version struct {
 	Timestamp time.Time
 	Data      map[string]interface{}
 	Path      string
+	AOFStart int64
+	AOFEnd int64
 }
 
 func New() *SnapShot {
 	return &SnapShot{
 		VersionRegistry: make(map[int]string),
 		LatestVersion: 0,
+		CurrentVersion: 0,
 	}
 }
 
-func (snapshot *SnapShot) Create(m map[string]any) (*Version, error) {
+func (snapshot *SnapShot) Create(m map[string]any, start, end int64) (*Version, error) {
 	if snapshot.LatestVersion != 0 {
 		latestVersion, err := decodeVersionBinary(snapshot.VersionRegistry[snapshot.LatestVersion])
 		if err != nil {
@@ -41,10 +45,11 @@ func (snapshot *SnapShot) Create(m map[string]any) (*Version, error) {
 			return nil, errors.New("no change since last snapshot")
 		}
 	}
-	newSnapshot, err := createSnapshot(snapshot.LatestVersion, m)
+	newSnapshot, err := createSnapshot(snapshot.LatestVersion, m, start, end)
 	if err != nil {
 		return nil, err
 	}
+	snapshot.CurrentVersion = newSnapshot.Id
 	snapshot.LatestVersion = newSnapshot.Id
 	snapshot.VersionRegistry[newSnapshot.Id] = newSnapshot.Path
 	return newSnapshot, nil
@@ -57,10 +62,17 @@ func (snapshot *SnapShot) GetVersion(version int) (*Version, bool) {
 	}
 	desiredVersion, err := decodeVersionBinary(versionFile)
 	if err != nil {
-		fmt.Println("(error) GetVersion() could decode version binary", err)
+		fmt.Println("(error) GetVersion() could not decode version binary", err)
 		return nil, false
 	}
 	return desiredVersion, true
+}
+
+func (snapshot *SnapShot) GetLatestVersion() (*Version, bool) {
+	if snapshot.LatestVersion == 0 {
+		return nil, true
+	}
+	return snapshot.GetVersion(snapshot.LatestVersion)
 }
 
 func  decodeVersionBinary(versionFile string) (*Version, error) {
@@ -77,13 +89,15 @@ func  decodeVersionBinary(versionFile string) (*Version, error) {
 	return desiredVersion, nil
 }
 
-func createSnapshot(currentVersion int, m map[string]interface{}) (*Version, error) {
-	_path := path.Join("./", fmt.Sprintf("%d", currentVersion+1)+config.SNAPSHOT_EXT)
+func createSnapshot(currentVersion int, m map[string]interface{},start,end int64) (*Version, error) {
+	_path := path.Join("./", config.CHRONO_MAIN_DIR, fmt.Sprintf("%d", currentVersion+1)+config.SNAPSHOT_EXT)
 	newVersion := &Version{
 		Timestamp: time.Now(),
 		Data:      deepCopy(m),
 		Id:        currentVersion + 1,
 		Path: _path,
+		AOFStart: start,
+		AOFEnd: end,
 	}
 	file, err := os.OpenFile(_path, os.O_WRONLY|os.O_CREATE, os.FileMode(0644))
 	if err != nil {

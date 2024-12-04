@@ -1,16 +1,23 @@
 package main
 
 import (
-	"fmt"
+	
+	"os"
+	"path/filepath"
 
 	"github.com/MridulDhiman/chronotable/chronotable"
 	"github.com/MridulDhiman/chronotable/config"
 )
 
+func init() {
+	newpath := filepath.Join(".", config.CHRONO_MAIN_DIR)
+	 os.MkdirAll(newpath, os.FileMode(0755))
+}
+
 func main() {
 	table := chronotable.New(&chronotable.Options{
 		EnableAOF:      true,
-		AOFPath:        config.AOF_PATH,
+		AOFPath:        config.MAIN_AOF_FILE,
 		EnableSnapshot: true,
 	})
 	table.Put("key1", 23)
@@ -19,8 +26,7 @@ func main() {
 	table.Commit()
 	table.Put("key4", 324)
 	table.Commit()
-	table.RollbackTo(1)
-	if _, ok := table.Get("key4"); !ok {
-		fmt.Println("key4 not found")
-	}
+	table.Put("key5", "namaste")
+	table.Timetravel(2)
+	
 }

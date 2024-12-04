@@ -3,45 +3,87 @@ package aof
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"os"
+	"path/filepath"
 	"time"
+
+	"github.com/MridulDhiman/chronotable/config"
 )
 
 type AOF struct {
-	path   string
-	file   *os.File
-	writer *bufio.Writer
+	MainPath   string
+	File   *os.File
+	Writer *bufio.Writer
+	VersionToPath map[int]string
+	SeekCurrent int64
 }
 
-func New(path string) *AOF {
+func New(_path string) *AOF {
 	// open file in append, write only mode and create as well, if not created.
 	// File has user permissions set: 6(rw-)4(r--)4(r--)
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, fs.FileMode(0644))
+	_path = filepath.Join("./", config.CHRONO_MAIN_DIR, _path)
+	file, err := os.OpenFile(_path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, fs.FileMode(0777))
 	if err != nil {
 		log.Fatal("Could not open file: ", err)
 	}
 	return &AOF{
-		file:   file,
-		path:   path,
-		writer: bufio.NewWriter(file),
+		File:   file,
+		MainPath:   _path,
+		Writer: bufio.NewWriter(file),
+		VersionToPath: make(map[int]string),
 	}
 }
 
 func (aof *AOF) Log(operation string) error {
 	fmt.Println("operation: ", operation)
-	if _, err := aof.writer.WriteString(operation + "\n"); err != nil {
+
+	defer func(aof* AOF) {
+		ptr, _ := aof.File.Seek(0, io.SeekCurrent)
+		aof.SeekCurrent = ptr
+	}(aof)
+
+	if _, err := aof.Writer.WriteString(operation + "\n"); err != nil {
 		fmt.Println("could not write to file")
 		return err
 	}
-	if err := aof.writer.Flush(); err != nil {
+	if err := aof.Writer.Flush(); err != nil {
 		return err
 	}
 
-	return aof.file.Sync()
+	return aof.File.Sync()
+}
+
+func (aof *AOF) Replay(start, end int64) error  {
+	file, err := os.OpenFile(filepath.Join("./", config.CHRONO_MAIN_DIR, config.MAIN_AOF_FILE), os.O_RDONLY, fs.FileMode(0644))
+	if err != nil {
+		log.Fatal("Could not open file: ", err)
+	}
+	defer file.Close()
+// move the file pointer to start
+	if _, err:= file.Seek(start, io.SeekStart); err != nil {
+		log.Fatal("(error) could not rewind file pointer: ", err)
+	}
+	scanner:= bufio.NewScanner(file)
+ 	var delta int64 = end - start
+	// why does file pointer location keep shifting by few bytes
+	var error_rate int64 = 10
+	for scanner.Scan() {
+		if delta <= error_rate {
+			break;
+		}
+		line := scanner.Text()
+		delta -= int64(len(line))
+		fmt.Println("Line: ", line);
+	}
+	
+return nil
 }
 
 func Format(key string, value any) string {
 	return fmt.Sprintf("Key: %s, Value: %v, Timestamp: %v", key, value, time.Now().UTC().Format(time.RFC3339Nano)) //ISO format with nanoseconds for AOF logs
 }
+
+
