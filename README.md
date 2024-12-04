@@ -1,5 +1,5 @@
 # chronotable
-in-memory hash table implementation with AOF persistence and versioning via point-in-time snapshotting supporting rollbacks and querying past updates.
+in-memory hash table implementation with AOF persistence and versioning via point-in-time snapshotting supporting rollbacks and querying past states.
 
 ### Features
 - In-memory storage using a Go map
