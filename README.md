@@ -5,12 +5,15 @@ in-memory hash table implementation with AOF persistence and versioning via poin
 - In-memory storage using a Go map
 - Thread safe operations via mutex locking.
 - Client side persistence with AOF(Append only file)
-- Snapshotting of the current state in binary file
+- Binary serialization/deserialization of current snapshot state
 - Versioning to support rollbacks and querying past states
 - AOF Markers to each version for AOF based rollbacks
 - Replay writes in case of crash
 
 ### Todo
+- Start from latest state in case of restart
+- Implement transactions for each commit
+- Create `FileHandler` struct for abstracting file handling tasks
 - Upload snapshot and AOF files to object storage
 - Scheduled backups of data
 - Diffing b/w diff. versions

@@ -1,17 +1,30 @@
 package main
 
 import (
-	
+	"log"
 	"os"
 	"path/filepath"
-
 	"github.com/MridulDhiman/chronotable/chronotable"
 	"github.com/MridulDhiman/chronotable/config"
+	"github.com/MridulDhiman/chronotable/internal/utils"
 )
+
+var initialized bool = false;
+
 
 func init() {
 	newpath := filepath.Join(".", config.CHRONO_MAIN_DIR)
-	 os.MkdirAll(newpath, os.FileMode(0755))
+	// check if directory exists or not
+	yes, err:= utils.Exists(newpath)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	if !yes {
+	os.MkdirAll(newpath, os.FileMode(0755))
+	} else {
+		initialized = true
+	}
 }
 
 func main() {
@@ -19,14 +32,22 @@ func main() {
 		EnableAOF:      true,
 		AOFPath:        config.MAIN_AOF_FILE,
 		EnableSnapshot: true,
+		Initialized: initialized,
 	})
-	table.Put("key1", 23)
-	table.Put("key2", "hello")
-	table.Put("key3", "yo")
-	table.Commit()
-	table.Put("key4", 324)
-	table.Commit()
-	table.Put("key5", "namaste")
-	table.Timetravel(2)
 	
+	if initialized {
+		// get current state by replaying logs
+		version, err:= utils.FetchLatestVersion()
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		if version != 0 {
+			if err := table.ReplayOnRestart(version); err != nil {
+				log.Fatal("(error) could not replay writes: ", err)
+			}
+		}
+	}
+
+	table.List()
 }

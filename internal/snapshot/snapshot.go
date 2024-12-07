@@ -5,17 +5,19 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/MridulDhiman/chronotable/config"
 	"github.com/MridulDhiman/chronotable/internal/decoder"
 	"github.com/MridulDhiman/chronotable/internal/encoder"
+	"github.com/MridulDhiman/chronotable/internal/utils"
 )
 
 type SnapShot struct {
 	LatestVersion   int
-	VersionRegistry map[int]string
-	CurrentVersion int
+	CurrentVersion  int
 }
 
 type Version struct {
@@ -23,25 +25,29 @@ type Version struct {
 	Timestamp time.Time
 	Data      map[string]interface{}
 	Path      string
-	AOFStart int64
-	AOFEnd int64
+	AOFStart  int64
+	AOFEnd    int64
 }
 
-func New() *SnapShot {
+func New(initialized bool) *SnapShot {
+	if !initialized {
+		utils.UpdateConfigFile(0)
+	}
+
 	return &SnapShot{
-		VersionRegistry: make(map[int]string),
-		LatestVersion: 0,
-		CurrentVersion: 0,
+		LatestVersion:   0,
+		CurrentVersion:  0,
 	}
 }
 
 func (snapshot *SnapShot) Create(m map[string]any, start, end int64) (*Version, error) {
 	if snapshot.LatestVersion != 0 {
-		latestVersion, err := decodeVersionBinary(snapshot.VersionRegistry[snapshot.LatestVersion])
+		latestVersion, err := decodeVersionBinary(getVersionFilePath(snapshot.LatestVersion))
 		if err != nil {
 			return nil, err
 		}
 		if same := compareWithLatestVersion(latestVersion, m); same {
+			fmt.Println("latest version: ", latestVersion)
 			return nil, errors.New("no change since last snapshot")
 		}
 	}
@@ -50,17 +56,13 @@ func (snapshot *SnapShot) Create(m map[string]any, start, end int64) (*Version, 
 		return nil, err
 	}
 	snapshot.CurrentVersion = newSnapshot.Id
+	go utils.UpdateConfigFile(newSnapshot.Id)
 	snapshot.LatestVersion = newSnapshot.Id
-	snapshot.VersionRegistry[newSnapshot.Id] = newSnapshot.Path
 	return newSnapshot, nil
 }
 
 func (snapshot *SnapShot) GetVersion(version int) (*Version, bool) {
-	versionFile, ok := snapshot.VersionRegistry[version]
-	if !ok {
-		return nil, false
-	}
-	desiredVersion, err := decodeVersionBinary(versionFile)
+	desiredVersion, err := decodeVersionBinary(getVersionFilePath(version))
 	if err != nil {
 		fmt.Println("(error) GetVersion() could not decode version binary", err)
 		return nil, false
@@ -75,7 +77,17 @@ func (snapshot *SnapShot) GetLatestVersion() (*Version, bool) {
 	return snapshot.GetVersion(snapshot.LatestVersion)
 }
 
-func  decodeVersionBinary(versionFile string) (*Version, error) {
+func (snapshot *SnapShot) SetLatestVersion(version int)  {
+	snapshot.LatestVersion = version;
+}
+
+func (snapshot *SnapShot) SetCurrentVersion(version int) {
+	snapshot.CurrentVersion = version;
+}
+
+
+
+func decodeVersionBinary(versionFile string) (*Version, error) {
 	file, err := os.OpenFile(versionFile, os.O_RDONLY, os.FileMode(0644))
 	if err != nil {
 		return nil, err
@@ -89,15 +101,15 @@ func  decodeVersionBinary(versionFile string) (*Version, error) {
 	return desiredVersion, nil
 }
 
-func createSnapshot(currentVersion int, m map[string]interface{},start,end int64) (*Version, error) {
+func createSnapshot(currentVersion int, m map[string]interface{}, start, end int64) (*Version, error) {
 	_path := path.Join("./", config.CHRONO_MAIN_DIR, fmt.Sprintf("%d", currentVersion+1)+config.SNAPSHOT_EXT)
 	newVersion := &Version{
 		Timestamp: time.Now(),
 		Data:      deepCopy(m),
 		Id:        currentVersion + 1,
-		Path: _path,
-		AOFStart: start,
-		AOFEnd: end,
+		Path:      _path,
+		AOFStart:  start,
+		AOFEnd:    end,
 	}
 	file, err := os.OpenFile(_path, os.O_WRONLY|os.O_CREATE, os.FileMode(0644))
 	if err != nil {
@@ -131,4 +143,8 @@ func deepCopy(src map[string]interface{}) map[string]interface{} {
 		dst[k] = v
 	}
 	return dst
+}
+
+func getVersionFilePath(version int) string {
+	return filepath.Join("./", config.CHRONO_MAIN_DIR, strconv.Itoa(version) + config.SNAPSHOT_EXT)
 }

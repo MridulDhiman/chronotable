@@ -21,11 +21,16 @@ type AOF struct {
 	SeekCurrent int64
 }
 
-func New(_path string) *AOF {
+func New(_path string, initialized bool) *AOF {
 	// open file in append, write only mode and create as well, if not created.
 	// File has user permissions set: 6(rw-)4(r--)4(r--)
 	_path = filepath.Join("./", config.CHRONO_MAIN_DIR, _path)
-	file, err := os.OpenFile(_path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, fs.FileMode(0777))
+	flags := os.O_WRONLY|os.O_APPEND;
+	fmt.Println("initialized", initialized)
+	if !initialized {
+		flags = os.O_APPEND|os.O_CREATE|os.O_WRONLY
+	}
+	file, err := os.OpenFile(_path,flags, fs.FileMode(0777))
 	if err != nil {
 		log.Fatal("Could not open file: ", err)
 	}

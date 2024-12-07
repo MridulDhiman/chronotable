@@ -7,3 +7,5 @@ const CHRONO_MAIN_DIR = ".chrono"
 
 const SNAP_DIR = "snapshots"
 const PERSIST_DIR = "persistence"
+
+const CONFIG_FILE = "main.config"

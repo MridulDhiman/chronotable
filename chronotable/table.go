@@ -2,13 +2,16 @@ package chronotable
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
 	"sync"
-
+	"github.com/MridulDhiman/chronotable/config"
 	"github.com/MridulDhiman/chronotable/internal/aof"
+	"github.com/MridulDhiman/chronotable/internal/decoder"
 	"github.com/MridulDhiman/chronotable/internal/snapshot"
+	"github.com/MridulDhiman/chronotable/internal/utils"
 )
-
-
 
 type ChronoTable struct {
 	M        map[string]interface{}
@@ -23,11 +26,11 @@ func New(opts *Options) *ChronoTable {
 	}
 
 	if opts.EnableAOF {
-		t.aof = aof.New(opts.AOFPath)
+		t.aof = aof.New(opts.AOFPath, opts.Initialized)
 	}
 
 	if opts.EnableSnapshot {
-		t.snapshot = snapshot.New()
+		t.snapshot = snapshot.New(opts.Initialized)
 	}
 
 	return t
@@ -45,7 +48,7 @@ func (m *ChronoTable) Put(key string, value interface{}) {
 	defer m.mtx.Unlock()
 	m.M[key] = value
 	if m.aof != nil {
-	 m.aof.Log(aof.Format(key, value))
+		m.aof.Log(aof.Format(key, value))
 	}
 }
 
@@ -81,6 +84,7 @@ func (m *ChronoTable) Commit() *snapshot.Version {
 	defer m.mtx.Unlock()
 	latestVersion, ok := m.snapshot.GetLatestVersion()
 	if !ok {
+		fmt.Println("(error) could not get latest version")
 		return nil
 	}
 	var AOFStart int64 = 0
@@ -94,6 +98,7 @@ func (m *ChronoTable) Commit() *snapshot.Version {
 		return nil
 	}
 
+	
 	return newSnapShot
 }
 
@@ -107,17 +112,44 @@ func (m *ChronoTable) Timetravel(version int) {
 		m.Clear()
 		m.Copy(desiredVersion.Data)
 		m.snapshot.CurrentVersion = version
+		go utils.UpdateConfigFile(version)
 	}
 }
 
-// get the current version's new insertions 
+// get the current version's new insertions
 func (m *ChronoTable) ChangesCurrent() {
-	 desiredVersion, _ := m.snapshot.GetVersion(m.snapshot.CurrentVersion); 
+	desiredVersion, _ := m.snapshot.GetVersion(m.snapshot.CurrentVersion)
 	m.aof.Replay(desiredVersion.AOFStart, desiredVersion.AOFEnd)
+}
+
+func (m *ChronoTable) List() {
+	for k,v := range m.M {
+	fmt.Printf("Key: %s, Value: %v\n", k, v)
+	}
 }
 
 // get the changes till current version
 func (m *ChronoTable) ChangesTill() {
-	desiredVersion, _ := m.snapshot.GetVersion(m.snapshot.CurrentVersion); 
-   m.aof.Replay(0, desiredVersion.AOFEnd)
+	desiredVersion, _ := m.snapshot.GetVersion(m.snapshot.CurrentVersion)
+	m.aof.Replay(0, desiredVersion.AOFEnd)
+}
+
+// Fetch Latest Snapshot file and return the desired version
+func (m *ChronoTable) ReplayOnRestart(version int) error {
+	snapshotFile := strconv.Itoa(version) + config.SNAPSHOT_EXT
+	file, err := os.OpenFile(filepath.Join("./", config.CHRONO_MAIN_DIR, snapshotFile), os.O_RDONLY, os.FileMode(0644))
+	if err != nil {
+		return fmt.Errorf("(error) could not open file: %v", err)
+	}
+	defer file.Close()
+	binDecoder := decoder.NewDecoder(file)
+	desiredVersion := new(snapshot.Version)
+	if err := binDecoder.Decode(desiredVersion); err != nil {
+		return err
+	}
+	m.Clear()
+	m.snapshot.SetCurrentVersion(desiredVersion.Id)
+	m.snapshot.SetLatestVersion(desiredVersion.Id)
+	m.Copy(desiredVersion.Data)
+	return nil
 }
