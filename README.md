@@ -9,10 +9,10 @@ in-memory hash table implementation with AOF persistence and versioning via poin
 - Versioning to support rollbacks and querying past states
 - AOF Markers to each version for AOF based rollbacks
 - Replay writes in case of crash
+- Start from latest state in case of restart
 
 ### Todo
-- Start from latest state in case of restart
-- Implement transactions for each commit
+- Implement transactions for each commit using AOF file
 - Create `FileHandler` struct for abstracting file handling tasks
 - Upload snapshot and AOF files to object storage
 - Scheduled backups of data
