@@ -13,7 +13,6 @@ in-memory hash table implementation with AOF persistence and versioning via poin
 
 ### Todo
 - Implement transactions for each commit using AOF file
-- Create `FileHandler` struct for abstracting file handling tasks
 - Upload snapshot and AOF files to object storage
 - Scheduled backups of data
 - Diffing b/w diff. versions
