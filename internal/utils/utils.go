@@ -1,12 +1,14 @@
 package utils
 
 import (
-	"errors"
+	"bufio"
+	
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+
 	"github.com/MridulDhiman/chronotable/config"
 )
 
@@ -15,34 +17,44 @@ func UpdateConfigFile(version int) {
 	if err != nil {
 		fmt.Println("(error) could not open file: ", err)
 	}
-	defer file.Close()
+	defer file.Close();
+	
 
-	file.WriteString(`CURR=`+ strconv.Itoa(version));
+	file.WriteString(`CURR=`+ strconv.Itoa(version)+"\n");
+	file.WriteString(`LATEST=`+ strconv.Itoa(version));
 }
 
-func FetchLatestVersion() (int, error) {
+func FetchLatestVersion() (int,int, error) {
 	file, err := os.OpenFile(filepath.Join("./", config.CHRONO_MAIN_DIR, config.CONFIG_FILE), os.O_CREATE|os.O_RDWR, os.FileMode(0644))
 	if err != nil {
-		return -1,fmt.Errorf("(error) could not open file: %v", err)
+		return -1,-1, fmt.Errorf("(error) could not open file: %v", err)
 	}
-	defer file.Close()
+	defer file.Close();
+	
+	scanner:= bufio.NewScanner(file)
+	var CurrentVersion , LatestVersion int = -1,-1
 
-	var buf []byte = make([]byte, 100)
-	n, err := file.Read(buf)
+	for scanner.Scan() {
+		data := scanner.Text()
+		if strings.HasPrefix(data, "CURR=") {
+			currentVersion, err := strconv.Atoi(strings.TrimPrefix(data, "CURR="));
+			if err != nil {
+				return -1, -1, fmt.Errorf("(error) could not convert CURR to integer: %v", err)
+			}
+			CurrentVersion = currentVersion
+			
+		} else if(strings.HasPrefix(data, "LATEST=")) {
+			latestVersion, err := strconv.Atoi(strings.TrimPrefix(data, "LATEST="));
+			if err != nil {
+				return -1, -1, fmt.Errorf("(error) could not convert LATEST to integer: %v", err)
+			}
+			
 
-	if err != nil {
-		return -1, fmt.Errorf("(error) could not read file: %v", err)
-	}
-	data := buf[:n]
-	if strings.HasPrefix(string(data),"CURR=") {
-		version, err:= strconv.Atoi(strings.TrimPrefix(string(data), "CURR="));
-		if err != nil {
-			return -1, err
+			LatestVersion = latestVersion
 		}
-		return version, nil
-	} else {
-		return -1, errors.New("(error) CURR prefix not found")
 	}
+
+	return CurrentVersion, LatestVersion, nil
 }
 
 

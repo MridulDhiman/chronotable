@@ -10,10 +10,12 @@ in-memory hash table implementation with AOF persistence and versioning via poin
 - AOF Markers to each version for AOF based rollbacks
 - Replay writes in case of crash
 - Start from latest state in case of restart
+- View current state changes
 
 ### Todo
+- Buffered Channel/Wait Group which will block the main thread till all the goroutines are not completed
 - Implement transactions for each commit using AOF file
-- Upload snapshot and AOF files to object storage
+- Upload snapshot and AOF files to object storage/NoSQL database
 - Scheduled backups of data
 - Diffing b/w diff. versions
 - Ability to merge different versions

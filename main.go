@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+
 	"github.com/MridulDhiman/chronotable/chronotable"
 	"github.com/MridulDhiman/chronotable/config"
 	"github.com/MridulDhiman/chronotable/internal/utils"
@@ -37,17 +39,21 @@ func main() {
 	
 	if initialized {
 		// get current state by replaying logs
-		version, err:= utils.FetchLatestVersion()
+		currentVersion,latestVersion, err:= utils.FetchLatestVersion()
 		if err != nil {
 			log.Fatalln(err)
 		}
-
-		if version != 0 {
-			if err := table.ReplayOnRestart(version); err != nil {
+		fmt.Println("latest version: ", latestVersion)
+		fmt.Println("current version: ", currentVersion)
+		if currentVersion != 0 {
+			if err := table.ReplayOnRestart(currentVersion, latestVersion); err != nil {
 				log.Fatal("(error) could not replay writes: ", err)
 			}
 		}
 	}
 
 	table.List()
+	table.Timetravel(2)
+	table.Put("key4", "snapshot no. 4")
+	table.Commit()
 }
