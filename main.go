@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-
 	"github.com/MridulDhiman/chronotable/chronotable"
 	"github.com/MridulDhiman/chronotable/config"
 	"github.com/MridulDhiman/chronotable/internal/utils"
