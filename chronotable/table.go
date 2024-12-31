@@ -6,23 +6,26 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
-	"github.com/MridulDhiman/chronotable/config"
 	"github.com/MridulDhiman/chronotable/internal/aof"
 	"github.com/MridulDhiman/chronotable/internal/decoder"
 	"github.com/MridulDhiman/chronotable/internal/snapshot"
-	"github.com/MridulDhiman/chronotable/internal/utils"
+	"github.com/MridulDhiman/chronotable/config"
 )
 
 type ChronoTable struct {
+	// TODO: make it private
 	M        map[string]interface{}
 	mtx      sync.RWMutex
 	aof      *aof.AOF
 	snapshot *snapshot.SnapShot
+	// TODO: make it private
+	ConfigHandler *config.ConfigHandler
 }
 
 func New(opts *Options) *ChronoTable {
 	t := &ChronoTable{
 		M: make(map[string]interface{}),
+		ConfigHandler: config.NewConfigHandler(),
 	}
 
 	if opts.EnableAOF {
@@ -30,7 +33,7 @@ func New(opts *Options) *ChronoTable {
 	}
 
 	if opts.EnableSnapshot {
-		t.snapshot = snapshot.New(opts.Initialized)
+		t.snapshot = snapshot.New(opts.Initialized, t.ConfigHandler)
 	}
 
 	return t
@@ -92,7 +95,7 @@ func (m *ChronoTable) Commit() *snapshot.Version {
 		AOFStart = latestVersion.AOFEnd
 	}
 
-	newSnapShot, err := m.snapshot.Create(m.M, AOFStart, m.aof.SeekCurrent)
+	newSnapShot, err := m.snapshot.Create(m.M, AOFStart, m.aof.SeekCurrent, m.ConfigHandler)
 	if err != nil {
 		fmt.Println("Error in creating snapshot: ", err)
 		return nil
@@ -112,7 +115,7 @@ func (m *ChronoTable) Timetravel(version int) {
 		m.Clear()
 		m.Copy(desiredVersion.Data)
 		m.snapshot.CurrentVersion = version
-		utils.UpdateConfigFile(version)
+		m.ConfigHandler.UpdateConfigFile(version)
 	}
 }
 
@@ -151,5 +154,6 @@ func (m *ChronoTable) ReplayOnRestart(currentVersion int, latestVersion int) err
 	m.snapshot.SetCurrentVersion(desiredVersion.Id)
 	m.snapshot.SetLatestVersion(latestVersion)
 	m.Copy(desiredVersion.Data)
+	m.aof.Replay(0, -1)
 	return nil
 }

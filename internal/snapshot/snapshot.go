@@ -9,10 +9,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/MridulDhiman/chronotable/config"
 	"github.com/MridulDhiman/chronotable/internal/decoder"
 	"github.com/MridulDhiman/chronotable/internal/encoder"
-	"github.com/MridulDhiman/chronotable/internal/utils"
+	"github.com/MridulDhiman/chronotable/config"
 )
 
 type SnapShot struct {
@@ -29,9 +28,9 @@ type Version struct {
 	AOFEnd    int64
 }
 
-func New(initialized bool) *SnapShot {
+func New(initialized bool, configHandler *config.ConfigHandler) *SnapShot {
 	if !initialized {
-		utils.UpdateConfigFile(0)
+		configHandler.UpdateConfigFile(0)
 	}
 
 	return &SnapShot{
@@ -40,7 +39,8 @@ func New(initialized bool) *SnapShot {
 	}
 }
 
-func (snapshot *SnapShot) Create(m map[string]any, start, end int64) (*Version, error) {
+// TODO: Make the configHandler loosely coupled 
+func (snapshot *SnapShot) Create(m map[string]any, start, end int64, configHandler *config.ConfigHandler) (*Version, error) {
 	if snapshot.LatestVersion != 0 {
 		latestVersion, err := decodeVersionBinary(getVersionFilePath(snapshot.LatestVersion))
 		if err != nil {
@@ -56,7 +56,7 @@ func (snapshot *SnapShot) Create(m map[string]any, start, end int64) (*Version, 
 		return nil, err
 	}
 	snapshot.CurrentVersion = newSnapshot.Id
-	go utils.UpdateConfigFile(newSnapshot.Id)
+	configHandler.UpdateConfigFile(newSnapshot.Id)
 	snapshot.LatestVersion = newSnapshot.Id
 	return newSnapshot, nil
 }

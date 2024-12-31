@@ -1,9 +1,16 @@
 package config
 
 import (
+	"fmt"
 	"strings"
 	"sync"
+
 	"github.com/spf13/viper"
+)
+
+var (
+	currVersion int
+	latestVersion int
 )
 
 type ConfigHandler struct {
@@ -44,3 +51,33 @@ func (c *ConfigHandler) read() error {
 	return viper.ReadInConfig()
 }
 
+
+func (c* ConfigHandler) UpdateConfigFile(version int) {
+	c.mtx.Lock();
+	defer c.mtx.Unlock();
+	c.Set(ConfigKeyCurrVersion, version);
+	c.Set(ConfigKeyLatestVersion, version);
+}
+
+
+func (c* ConfigHandler) FetchLatestVersion() (int,int, error) {
+	tempCurr, errCurr := c.Get(ConfigKeyCurrVersion)
+	if errCurr != nil {
+		return -1, -1, errCurr
+	}
+
+	var ok bool;
+	if currVersion, ok = tempCurr.(int); !ok {
+		return -1, -1, fmt.Errorf("could not convert curr version into integer");
+}
+
+	tempLatest, errLatest := c.Get(ConfigKeyLatestVersion)
+	if latestVersion, ok = tempLatest.(int); !ok {
+		return -1, -1, fmt.Errorf("could not convert curr version into integer");
+}
+	if errLatest != nil {
+		return -1, -1, errCurr
+	}
+	
+	return currVersion, latestVersion, nil
+}

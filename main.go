@@ -38,7 +38,7 @@ func main() {
 	
 	if initialized {
 		// get current state by replaying logs
-		currentVersion,latestVersion, err:= utils.FetchLatestVersion()
+		currentVersion,latestVersion, err:= table.ConfigHandler.FetchLatestVersion()
 		if err != nil {
 			log.Fatalln(err)
 		}
