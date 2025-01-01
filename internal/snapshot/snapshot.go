@@ -28,11 +28,7 @@ type Version struct {
 	AOFEnd    int64
 }
 
-func New(initialized bool, configHandler *config.ConfigHandler) *SnapShot {
-	if !initialized {
-		configHandler.UpdateConfigFile(0)
-	}
-
+func New() *SnapShot {
 	return &SnapShot{
 		LatestVersion:   0,
 		CurrentVersion:  0,

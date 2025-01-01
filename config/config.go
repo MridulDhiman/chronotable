@@ -5,10 +5,11 @@ const (
 	MAIN_AOF_FILE   = "main.aof"
 	CURR_AOF_FILE   = "curr.aof"
 	CHRONO_MAIN_DIR = ".chrono"
-	CONFIG_FILE     = "vulcan.toml"
+	CONFIG_FILE     = "config.toml"
 )
 
 var (
-	ConfigKeyCurrVersion = "curr_version"
-	ConfigKeyLatestVersion = "latest_version" 
+	ConfigKeyCurrVersion   = "CurrVersion"
+	ConfigKeyLatestVersion = "LatestVersion"
+	DefaultLoggerPrefix    = "chronotable:"
 )

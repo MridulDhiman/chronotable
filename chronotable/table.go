@@ -2,14 +2,16 @@ package chronotable
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
 	"sync"
+
+	"github.com/MridulDhiman/chronotable/config"
 	"github.com/MridulDhiman/chronotable/internal/aof"
 	"github.com/MridulDhiman/chronotable/internal/decoder"
 	"github.com/MridulDhiman/chronotable/internal/snapshot"
-	"github.com/MridulDhiman/chronotable/config"
 )
 
 type ChronoTable struct {
@@ -20,12 +22,18 @@ type ChronoTable struct {
 	snapshot *snapshot.SnapShot
 	// TODO: make it private
 	ConfigHandler *config.ConfigHandler
+	logger        *log.Logger
 }
 
 func New(opts *Options) *ChronoTable {
 	t := &ChronoTable{
-		M: make(map[string]interface{}),
+		M:             make(map[string]interface{}),
 		ConfigHandler: config.NewConfigHandler(),
+		logger:        opts.Logger,
+	}
+
+	if !opts.Initialized {
+		go t.ConfigHandler.UpdateConfigFile(0)
 	}
 
 	if opts.EnableAOF {
@@ -33,7 +41,7 @@ func New(opts *Options) *ChronoTable {
 	}
 
 	if opts.EnableSnapshot {
-		t.snapshot = snapshot.New(opts.Initialized, t.ConfigHandler)
+		t.snapshot = snapshot.New()
 	}
 
 	return t
@@ -49,10 +57,10 @@ func (m *ChronoTable) Get(key string) (interface{}, bool) {
 func (m *ChronoTable) Put(key string, value interface{}) {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
-	m.M[key] = value
 	if m.aof != nil {
 		m.aof.Log(aof.Format(key, value))
 	}
+	m.M[key] = value
 }
 
 func (m *ChronoTable) Delete(key string) {
@@ -101,7 +109,6 @@ func (m *ChronoTable) Commit() *snapshot.Version {
 		return nil
 	}
 
-	
 	return newSnapShot
 }
 
@@ -126,8 +133,8 @@ func (m *ChronoTable) ChangesCurrent() {
 }
 
 func (m *ChronoTable) List() {
-	for k,v := range m.M {
-	fmt.Printf("Key: %s, Value: %v\n", k, v)
+	for k, v := range m.M {
+		fmt.Printf("Key: %s, Value: %v\n", k, v)
 	}
 }
 
@@ -154,6 +161,5 @@ func (m *ChronoTable) ReplayOnRestart(currentVersion int, latestVersion int) err
 	m.snapshot.SetCurrentVersion(desiredVersion.Id)
 	m.snapshot.SetLatestVersion(latestVersion)
 	m.Copy(desiredVersion.Data)
-	m.aof.Replay(0, -1)
 	return nil
 }

@@ -2,9 +2,11 @@ package config
 
 import (
 	"fmt"
+	"os"
+	"path"
 	"strings"
 	"sync"
-
+	"github.com/MridulDhiman/chronotable/internal/utils"
 	"github.com/spf13/viper"
 )
 
@@ -14,7 +16,7 @@ var (
 )
 
 type ConfigHandler struct {
-	mtx *sync.Mutex;
+	mtx sync.Mutex;
 	viper *viper.Viper;
 }
 
@@ -22,6 +24,23 @@ type ConfigHandler struct {
 func NewConfigHandler() *ConfigHandler {
 	newViperInst := viper.New()
 	newViperInst.AddConfigPath(CHRONO_MAIN_DIR)
+	configFileFullPath := path.Join(CHRONO_MAIN_DIR, CONFIG_FILE)
+	yes, err := utils.Exists(configFileFullPath)
+	if err != nil {
+		panic("Could not find config file")
+	}
+
+	if !yes {
+		fmt.Println("config file does not exist.")
+		fmt.Println("Creating new file...");
+		_, err := os.Create(configFileFullPath)
+		if err != nil {
+			panic("could not create config file")
+		}
+
+		fmt.Println("Config file created successful at path: ", configFileFullPath)
+		}
+
 	configFileSeg:= strings.Split(CONFIG_FILE, ".")
     newViperInst.SetConfigName(configFileSeg[0]) 
     newViperInst.SetConfigType(configFileSeg[1])   
@@ -45,16 +64,17 @@ func (c *ConfigHandler) Set(key string, value any) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock();
 	c.viper.Set(key, value);
+	if err := c.viper.WriteConfig(); err != nil {
+		fmt.Println("(error) *ConfigHandler.Set()", err)
+	}
 }
 
 func (c *ConfigHandler) read() error {
 	return viper.ReadInConfig()
 }
 
-
 func (c* ConfigHandler) UpdateConfigFile(version int) {
-	c.mtx.Lock();
-	defer c.mtx.Unlock();
+	fmt.Println("updating config file...")
 	c.Set(ConfigKeyCurrVersion, version);
 	c.Set(ConfigKeyLatestVersion, version);
 }

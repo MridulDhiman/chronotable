@@ -12,7 +12,6 @@ import (
 
 var initialized bool = false;
 
-
 func init() {
 	newpath := filepath.Join(".", config.CHRONO_MAIN_DIR)
 	// check if directory exists or not
@@ -29,11 +28,13 @@ func init() {
 }
 
 func main() {
+	logger := log.New(os.Stdin, config.DefaultLoggerPrefix, log.LstdFlags)
 	table := chronotable.New(&chronotable.Options{
 		EnableAOF:      true,
 		AOFPath:        config.MAIN_AOF_FILE,
 		EnableSnapshot: true,
 		Initialized: initialized,
+		Logger: logger,
 	})
 	
 	if initialized {
@@ -51,8 +52,7 @@ func main() {
 		}
 	}
 
-	table.List()
-	table.Timetravel(2)
-	table.Put("key4", "snapshot no. 4")
-	table.Commit()
+	table.Put("key1", "hello");
+	table.Put("key2", "hello2");
+	table.Put("key3", "hello3");
 }
