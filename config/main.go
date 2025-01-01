@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	currVersion int
-	latestVersion int
+	currVersion int64
+	latestVersion int64
 )
 
 type ConfigHandler struct {
@@ -49,10 +49,6 @@ func NewConfigHandler() *ConfigHandler {
 	}
 }
 
-func (c *ConfigHandler) Read() error {
-	return c.read()
-}
-
 func (c *ConfigHandler) Get(key string) (interface{}, error) {
 	if err := c.read(); err != nil {
 		return nil, err
@@ -70,29 +66,29 @@ func (c *ConfigHandler) Set(key string, value any) {
 }
 
 func (c *ConfigHandler) read() error {
-	return viper.ReadInConfig()
+	return c.viper.ReadInConfig()
 }
 
-func (c* ConfigHandler) UpdateConfigFile(version int) {
+func (c* ConfigHandler) UpdateConfigFile(version int64) {
 	fmt.Println("updating config file...")
 	c.Set(ConfigKeyCurrVersion, version);
 	c.Set(ConfigKeyLatestVersion, version);
 }
 
 
-func (c* ConfigHandler) FetchLatestVersion() (int,int, error) {
+func (c* ConfigHandler) FetchLatestVersion() (int64, int64, error) {
 	tempCurr, errCurr := c.Get(ConfigKeyCurrVersion)
 	if errCurr != nil {
 		return -1, -1, errCurr
 	}
 
 	var ok bool;
-	if currVersion, ok = tempCurr.(int); !ok {
+	if currVersion, ok = tempCurr.(int64); !ok {
 		return -1, -1, fmt.Errorf("could not convert curr version into integer");
 }
 
 	tempLatest, errLatest := c.Get(ConfigKeyLatestVersion)
-	if latestVersion, ok = tempLatest.(int); !ok {
+	if latestVersion, ok = tempLatest.(int64); !ok {
 		return -1, -1, fmt.Errorf("could not convert curr version into integer");
 }
 	if errLatest != nil {

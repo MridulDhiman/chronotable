@@ -116,7 +116,7 @@ func (m *ChronoTable) SnapshotEnabled() bool {
 	return m.snapshot == nil
 }
 
-func (m *ChronoTable) Timetravel(version int) {
+func (m *ChronoTable) Timetravel(version int64) {
 	desiredVersion, ok := m.snapshot.GetVersion(version)
 	if ok {
 		m.Clear()
@@ -145,8 +145,8 @@ func (m *ChronoTable) ChangesTill() {
 }
 
 // Fetch Latest Snapshot file and return the desired version
-func (m *ChronoTable) ReplayOnRestart(currentVersion int, latestVersion int) error {
-	snapshotFile := strconv.Itoa(currentVersion) + config.SNAPSHOT_EXT
+func (m *ChronoTable) ReplayOnRestart(currentVersion , latestVersion int64) error {
+	snapshotFile := strconv.FormatInt(currentVersion, 10) + config.SNAPSHOT_EXT
 	file, err := os.OpenFile(filepath.Join("./", config.CHRONO_MAIN_DIR, snapshotFile), os.O_RDONLY, os.FileMode(0644))
 	if err != nil {
 		return fmt.Errorf("(error) could not open file: %v", err)

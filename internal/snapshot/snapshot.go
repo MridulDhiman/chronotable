@@ -15,12 +15,12 @@ import (
 )
 
 type SnapShot struct {
-	LatestVersion   int
-	CurrentVersion  int
+	LatestVersion   int64
+	CurrentVersion  int64
 }
 
 type Version struct {
-	Id        int
+	Id        int64
 	Timestamp time.Time
 	Data      map[string]interface{}
 	Path      string
@@ -57,7 +57,7 @@ func (snapshot *SnapShot) Create(m map[string]any, start, end int64, configHandl
 	return newSnapshot, nil
 }
 
-func (snapshot *SnapShot) GetVersion(version int) (*Version, bool) {
+func (snapshot *SnapShot) GetVersion(version int64) (*Version, bool) {
 	desiredVersion, err := decodeVersionBinary(getVersionFilePath(version))
 	if err != nil {
 		fmt.Println("(error) GetVersion() could not decode version binary", err)
@@ -73,11 +73,11 @@ func (snapshot *SnapShot) GetLatestVersion() (*Version, bool) {
 	return snapshot.GetVersion(snapshot.LatestVersion)
 }
 
-func (snapshot *SnapShot) SetLatestVersion(version int)  {
+func (snapshot *SnapShot) SetLatestVersion(version int64)  {
 	snapshot.LatestVersion = version;
 }
 
-func (snapshot *SnapShot) SetCurrentVersion(version int) {
+func (snapshot *SnapShot) SetCurrentVersion(version int64) {
 	snapshot.CurrentVersion = version;
 }
 
@@ -97,12 +97,12 @@ func decodeVersionBinary(versionFile string) (*Version, error) {
 	return desiredVersion, nil
 }
 
-func createSnapshot(currentVersion int, m map[string]interface{}, start, end int64) (*Version, error) {
+func createSnapshot(currentVersion int64, m map[string]interface{}, start, end int64) (*Version, error) {
 	_path := path.Join("./", config.CHRONO_MAIN_DIR, fmt.Sprintf("%d", currentVersion+1)+config.SNAPSHOT_EXT)
 	newVersion := &Version{
 		Timestamp: time.Now(),
 		Data:      deepCopy(m),
-		Id:        currentVersion + 1,
+		Id:        currentVersion + int64(1),
 		Path:      _path,
 		AOFStart:  start,
 		AOFEnd:    end,
@@ -141,6 +141,6 @@ func deepCopy(src map[string]interface{}) map[string]interface{} {
 	return dst
 }
 
-func getVersionFilePath(version int) string {
-	return filepath.Join("./", config.CHRONO_MAIN_DIR, strconv.Itoa(version) + config.SNAPSHOT_EXT)
+func getVersionFilePath(version int64) string {
+	return filepath.Join("./", config.CHRONO_MAIN_DIR, strconv.FormatInt(version, 10) + config.SNAPSHOT_EXT)
 }
