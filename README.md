@@ -11,6 +11,7 @@ in-memory hash table implementation with AOF persistence and versioning via poin
 - Replay writes in case of crash
 - Start from latest state in case of restart
 - View current state changes
+- Viper based configuration management 
 
 ### Todo
 - Buffered Channel/Wait Group which will block the main thread till all the goroutines are not completed
