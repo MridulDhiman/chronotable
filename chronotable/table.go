@@ -28,7 +28,7 @@ type ChronoTable struct {
 func New(opts *Options) *ChronoTable {
 	t := &ChronoTable{
 		M:             make(map[string]interface{}),
-		ConfigHandler: config.NewConfigHandler(),
+		ConfigHandler: config.NewConfigHandler(opts.Mode),
 		logger:        opts.Logger,
 	}
 
@@ -145,7 +145,7 @@ func (m *ChronoTable) ChangesTill() {
 }
 
 // Fetch Latest Snapshot file and return the desired version
-func (m *ChronoTable) ReplayOnRestart(currentVersion , latestVersion int64) error {
+func (m *ChronoTable) ReplayOnRestart(currentVersion, latestVersion int64) error {
 	snapshotFile := strconv.FormatInt(currentVersion, 10) + config.SNAPSHOT_EXT
 	file, err := os.OpenFile(filepath.Join("./", config.CHRONO_MAIN_DIR, snapshotFile), os.O_RDONLY, os.FileMode(0644))
 	if err != nil {

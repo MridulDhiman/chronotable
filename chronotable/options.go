@@ -8,4 +8,5 @@ type Options struct {
 	EnableSnapshot bool
 	Initialized    bool
 	Logger         *log.Logger
+	Mode           string
 }

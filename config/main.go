@@ -2,10 +2,12 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path"
 	"strings"
 	"sync"
+
 	"github.com/MridulDhiman/chronotable/internal/utils"
 	"github.com/spf13/viper"
 )
@@ -18,10 +20,16 @@ var (
 type ConfigHandler struct {
 	mtx sync.Mutex;
 	viper *viper.Viper;
+	mode string
 }
 
+var SupportedConfigModes = []string{"local", "remote"}
 
-func NewConfigHandler() *ConfigHandler {
+func NewConfigHandler(mode string) *ConfigHandler {
+	if !utils.StringInSlice(mode, SupportedConfigModes) {
+		log.Printf("config mode not supported: %s, available options: %+v", mode, SupportedConfigModes)
+		return nil
+	}
 	newViperInst := viper.New()
 	newViperInst.AddConfigPath(CHRONO_MAIN_DIR)
 	configFileFullPath := path.Join(CHRONO_MAIN_DIR, CONFIG_FILE)
@@ -41,11 +49,17 @@ func NewConfigHandler() *ConfigHandler {
 		fmt.Println("Config file created successful at path: ", configFileFullPath)
 		}
 
+		if mode == "remote" {
+			remoteProviderId := "remote-provider-endpoint-here"
+			newViperInst.AddRemoteProvider("firestore", remoteProviderId,"chronotable/config")
+		}
+
 	configFileSeg:= strings.Split(CONFIG_FILE, ".")
     newViperInst.SetConfigName(configFileSeg[0]) 
     newViperInst.SetConfigType(configFileSeg[1])   
 	return &ConfigHandler{
 		viper: newViperInst,
+		mode: mode,
 	}
 }
 
@@ -60,14 +74,26 @@ func (c *ConfigHandler) Set(key string, value any) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock();
 	c.viper.Set(key, value);
-	if err := c.viper.WriteConfig(); err != nil {
+	if err := c.write(); err != nil {
 		fmt.Println("(error) *ConfigHandler.Set()", err)
 	}
 }
 
 func (c *ConfigHandler) read() error {
+	if c.mode == "remote" {
+		return c.viper.ReadRemoteConfig()
+	}
 	return c.viper.ReadInConfig()
 }
+
+func (c *ConfigHandler) write() error {
+	if c.mode == "remote" {
+		return c.viper.WatchRemoteConfig()
+	}
+	return c.viper.WriteConfig()
+}
+
+
 
 func (c* ConfigHandler) UpdateConfigFile(version int64) {
 	fmt.Println("updating config file...")
