@@ -24,8 +24,6 @@ type Version struct {
 	Timestamp time.Time
 	Data      map[string]interface{}
 	Path      string
-	AOFStart  int64
-	AOFEnd    int64
 }
 
 func New() *SnapShot {
@@ -36,7 +34,7 @@ func New() *SnapShot {
 }
 
 // TODO: Make the configHandler loosely coupled 
-func (snapshot *SnapShot) Create(m map[string]any, start, end int64, configHandler *config.ConfigHandler) (*Version, error) {
+func (snapshot *SnapShot) Create(m map[string]any,  configHandler *config.ConfigHandler) (*Version, error) {
 	if snapshot.LatestVersion != 0 {
 		latestVersion, err := decodeVersionBinary(getVersionFilePath(snapshot.LatestVersion))
 		if err != nil {
@@ -47,7 +45,7 @@ func (snapshot *SnapShot) Create(m map[string]any, start, end int64, configHandl
 			return nil, errors.New("no change since last snapshot")
 		}
 	}
-	newSnapshot, err := createSnapshot(snapshot.LatestVersion, m, start, end)
+	newSnapshot, err := createSnapshot(snapshot.LatestVersion, m)
 	if err != nil {
 		return nil, err
 	}
@@ -97,15 +95,13 @@ func decodeVersionBinary(versionFile string) (*Version, error) {
 	return desiredVersion, nil
 }
 
-func createSnapshot(currentVersion int64, m map[string]interface{}, start, end int64) (*Version, error) {
+func createSnapshot(currentVersion int64, m map[string]interface{}) (*Version, error) {
 	_path := path.Join("./", config.CHRONO_MAIN_DIR, fmt.Sprintf("%d", currentVersion+1)+config.SNAPSHOT_EXT)
 	newVersion := &Version{
 		Timestamp: time.Now(),
 		Data:      deepCopy(m),
 		Id:        currentVersion + int64(1),
 		Path:      _path,
-		AOFStart:  start,
-		AOFEnd:    end,
 	}
 	file, err := os.OpenFile(_path, os.O_WRONLY|os.O_CREATE, os.FileMode(0644))
 	if err != nil {

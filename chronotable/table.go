@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
-
 	"github.com/MridulDhiman/chronotable/config"
 	"github.com/MridulDhiman/chronotable/internal/aof"
 	"github.com/MridulDhiman/chronotable/internal/decoder"
@@ -58,7 +57,7 @@ func (m *ChronoTable) Put(key string, value interface{}) {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 	if m.aof != nil {
-		m.aof.Log(aof.Format(key, value))
+		m.aof.Log(aof.MustFormat(key, value, aof.PutOp))
 	}
 	m.M[key] = value
 }
@@ -66,6 +65,9 @@ func (m *ChronoTable) Put(key string, value interface{}) {
 func (m *ChronoTable) Delete(key string) {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
+	if m.aof != nil {
+		m.aof.Log(aof.MustFormat(key, nil, aof.DeleteOp))
+	}
 	delete(m.M, key)
 }
 
@@ -90,46 +92,48 @@ func (m *ChronoTable) Copy(m2 map[string]any) {
 	}
 }
 
+// if snapshot configured in chronotable,
+// creates new snapshot from current state of the hash table, 
+// clears the log, else returns nil 
 func (m *ChronoTable) Commit() *snapshot.Version {
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
-	latestVersion, ok := m.snapshot.GetLatestVersion()
-	if !ok {
-		fmt.Println("(error) could not get latest version")
-		return nil
+	if m.snapshotEnabled() {
+		m.mtx.Lock()
+		defer m.mtx.Unlock()
+		newSnapShot, err := m.snapshot.Create(m.M, m.ConfigHandler)
+		if err != nil {
+			fmt.Println("Error in creating snapshot: ", err)
+			return nil
+		}
+		// TODO: handling properly if snapshot creation successful, but could not clear the log 
+		if m.aofEnabled() {
+			if err := m.aof.Clear(); err != nil {
+					fmt.Println("Error in clearing log: ", err)
+					return nil
+			}
+		}
+		return newSnapShot
 	}
-	var AOFStart int64 = 0
-	if latestVersion != nil {
-		AOFStart = latestVersion.AOFEnd
-	}
-
-	newSnapShot, err := m.snapshot.Create(m.M, AOFStart, m.aof.SeekCurrent, m.ConfigHandler)
-	if err != nil {
-		fmt.Println("Error in creating snapshot: ", err)
-		return nil
-	}
-
-	return newSnapShot
+	return nil
 }
 
-func (m *ChronoTable) SnapshotEnabled() bool {
-	return m.snapshot == nil
+func (m *ChronoTable) snapshotEnabled() bool {
+	return m.snapshot != nil;
+}
+
+func (m *ChronoTable) aofEnabled() bool {
+	return m.aof != nil;
 }
 
 func (m *ChronoTable) Timetravel(version int64) {
-	desiredVersion, ok := m.snapshot.GetVersion(version)
-	if ok {
-		m.Clear()
-		m.Copy(desiredVersion.Data)
-		m.snapshot.CurrentVersion = version
-		m.ConfigHandler.UpdateConfigFile(version)
+	if m.snapshotEnabled() {
+		desiredVersion, ok := m.snapshot.GetVersion(version)
+		if ok {
+			m.Clear()
+			m.Copy(desiredVersion.Data)
+			m.snapshot.CurrentVersion = version
+			m.ConfigHandler.UpdateConfigFile(version)
+		}
 	}
-}
-
-// get the current version's new insertions
-func (m *ChronoTable) ChangesCurrent() {
-	desiredVersion, _ := m.snapshot.GetVersion(m.snapshot.CurrentVersion)
-	m.aof.Replay(desiredVersion.AOFStart, desiredVersion.AOFEnd)
 }
 
 func (m *ChronoTable) List() {
@@ -138,11 +142,6 @@ func (m *ChronoTable) List() {
 	}
 }
 
-// get the changes till current version
-func (m *ChronoTable) ChangesTill() {
-	desiredVersion, _ := m.snapshot.GetVersion(m.snapshot.CurrentVersion)
-	m.aof.Replay(0, desiredVersion.AOFEnd)
-}
 
 // Fetch Latest Snapshot file and return the desired version
 func (m *ChronoTable) ReplayOnRestart(currentVersion, latestVersion int64) error {
@@ -152,6 +151,7 @@ func (m *ChronoTable) ReplayOnRestart(currentVersion, latestVersion int64) error
 		return fmt.Errorf("(error) could not open file: %v", err)
 	}
 	defer file.Close()
+	// TODO: concretions object creation outside function
 	binDecoder := decoder.NewDecoder(file)
 	desiredVersion := new(snapshot.Version)
 	if err := binDecoder.Decode(desiredVersion); err != nil {
@@ -161,5 +161,7 @@ func (m *ChronoTable) ReplayOnRestart(currentVersion, latestVersion int64) error
 	m.snapshot.SetCurrentVersion(desiredVersion.Id)
 	m.snapshot.SetLatestVersion(latestVersion)
 	m.Copy(desiredVersion.Data)
+	m.aof.MustReplay()
 	return nil
 }
+

@@ -5,16 +5,21 @@ import (
 	"io"
 )
 
-type Encoder struct {
+
+type IEncoder interface {
+	Encode(e any) error
+}
+
+type GobEncoder struct {
 	writer *gob.Encoder
 }
 
-func NewEncoder(writer io.Writer) *Encoder {
-	return &Encoder{
+func NewEncoder(writer io.Writer) *GobEncoder {
+	return &GobEncoder{
 		writer: gob.NewEncoder(writer),
 	}
 }
 
-func (encoder *Encoder) Encode(e any) error {
+func (encoder *GobEncoder) Encode(e any) error {
 	return encoder.writer.Encode(e)
 }
