@@ -54,4 +54,10 @@ func main() {
 	}
 
 
+	table.Put("key1", "hello");
+	table.Put("key2", "hello2");
+	table.Put("key3", "hello3");
+	table.Commit();
+	table.Put("key4", "hello4");
+	table.Commit();
 }
