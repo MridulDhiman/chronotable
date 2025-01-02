@@ -41,18 +41,35 @@ func New(_path string, initialized bool) *AOF {
 	}
 }
 
-func (aof *AOF) Log(operation string) error {
+func (aof *AOF) Log(operation string)  {
 	fmt.Println("operation: ", operation)
 
-	if _, err := aof.Writer.WriteString(operation + "\n"); err != nil {
-		fmt.Println("could not write to file")
-		return err
-	}
-	if err := aof.Writer.Flush(); err != nil {
-		return err
-	}
+	loggerChan := make(chan bool, 1);
 
-	return aof.File.Sync()
+	// TODO: handle updating the bufio writer  better way
+	go func () {
+	    flags := os.O_WRONLY | os.O_APPEND|os.O_APPEND
+		file, err := os.OpenFile(aof.MainPath, flags, fs.FileMode(0777))
+	if err != nil {
+		log.Fatal("Could not open file: ", err)
+	}
+		aof.Writer = bufio.NewWriter(file)
+		if _, err := aof.Writer.WriteString(operation + "\n"); err != nil {
+			fmt.Println("could not write to file")
+			 panic(err)
+		}
+	
+		if err := aof.Writer.Flush(); err != nil {
+			panic(err)
+		}
+	
+		if err:= aof.File.Sync(); err != nil {
+			panic(err)
+		}
+		loggerChan <- true
+	}()
+
+	<- loggerChan
 }
 
 // Scan AOF line by line
@@ -65,7 +82,6 @@ func (aof *AOF) MustReplay() []*Operation {
 	}
 	defer file.Close()
 	scanner := bufio.NewScanner(file)
-
 	var operations []*Operation
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -79,11 +95,13 @@ func (aof *AOF) MustReplay() []*Operation {
 	return operations
 }
 
+// Reference: https://stackoverflow.com/questions/25534857/truncating-open-os-file-access-denied
 // clears the AOF log upon commit
 func (aof *AOF) Clear() error {
 	if err := aof.File.Close(); err != nil {
 		return err
 	}
+	// Reference: https://stackoverflow.com/questions/67089977/deleting-content-of-file-without-deleting-the-file-in-golang
 	if err := os.Truncate(aof.MainPath, 0); err != nil {
 		return err
 	}

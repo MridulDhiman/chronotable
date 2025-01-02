@@ -10,3 +10,7 @@ type Options struct {
 	Logger         *log.Logger
 	Mode           string
 }
+
+type InputOpts struct {
+	IsReplayed bool
+}

@@ -24,6 +24,7 @@ type ChronoTable struct {
 	logger        *log.Logger
 }
 
+
 func New(opts *Options) *ChronoTable {
 	t := &ChronoTable{
 		M:             make(map[string]interface{}),
@@ -53,19 +54,21 @@ func (m *ChronoTable) Get(key string) (interface{}, bool) {
 	return value, ok
 }
 
-func (m *ChronoTable) Put(key string, value interface{}) {
+func (m *ChronoTable) Put(key string, value interface{}, options ...InputOpts) {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
-	if m.aof != nil {
+	inputOpts:= m.handleInputOpts(options...)
+	if m.aof != nil && !inputOpts.IsReplayed {
 		m.aof.Log(aof.MustFormat(key, value, aof.PutOp))
 	}
 	m.M[key] = value
 }
 
-func (m *ChronoTable) Delete(key string) {
+func (m *ChronoTable) Delete(key string, options ...InputOpts) {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
-	if m.aof != nil {
+	inputOpts:= m.handleInputOpts(options...)
+	if m.aof != nil && !inputOpts.IsReplayed {
 		m.aof.Log(aof.MustFormat(key, nil, aof.DeleteOp))
 	}
 	delete(m.M, key)
@@ -116,14 +119,6 @@ func (m *ChronoTable) Commit() *snapshot.Version {
 	return nil
 }
 
-func (m *ChronoTable) snapshotEnabled() bool {
-	return m.snapshot != nil;
-}
-
-func (m *ChronoTable) aofEnabled() bool {
-	return m.aof != nil;
-}
-
 func (m *ChronoTable) Timetravel(version int64) {
 	if m.snapshotEnabled() {
 		desiredVersion, ok := m.snapshot.GetVersion(version)
@@ -145,23 +140,58 @@ func (m *ChronoTable) List() {
 
 // Fetch Latest Snapshot file and return the desired version
 func (m *ChronoTable) ReplayOnRestart(currentVersion, latestVersion int64) error {
-	snapshotFile := strconv.FormatInt(currentVersion, 10) + config.SNAPSHOT_EXT
-	file, err := os.OpenFile(filepath.Join("./", config.CHRONO_MAIN_DIR, snapshotFile), os.O_RDONLY, os.FileMode(0644))
-	if err != nil {
-		return fmt.Errorf("(error) could not open file: %v", err)
+	if latestVersion != int64(0) {
+		snapshotFile := strconv.FormatInt(currentVersion, 10) + config.SNAPSHOT_EXT
+		file, err := os.OpenFile(filepath.Join("./", config.CHRONO_MAIN_DIR, snapshotFile), os.O_RDONLY, os.FileMode(0644))
+		if err != nil {
+			return fmt.Errorf("(error) could not open file: %v", err)
+		}
+		defer file.Close()
+		// TODO: concretions object creation outside function
+		binDecoder := decoder.NewDecoder(file)
+		desiredVersion := new(snapshot.Version)
+		if err := binDecoder.Decode(desiredVersion); err != nil {
+			return err
+		}
+		m.Clear()
+		m.snapshot.SetCurrentVersion(desiredVersion.Id)
+		m.snapshot.SetLatestVersion(latestVersion)
+		m.Copy(desiredVersion.Data)
 	}
-	defer file.Close()
-	// TODO: concretions object creation outside function
-	binDecoder := decoder.NewDecoder(file)
-	desiredVersion := new(snapshot.Version)
-	if err := binDecoder.Decode(desiredVersion); err != nil {
-		return err
-	}
-	m.Clear()
-	m.snapshot.SetCurrentVersion(desiredVersion.Id)
-	m.snapshot.SetLatestVersion(latestVersion)
-	m.Copy(desiredVersion.Data)
-	m.aof.MustReplay()
+
+	m.populate(m.aof.MustReplay())
 	return nil
 }
 
+// ~~~ PRIVATE METHODS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+func (m *ChronoTable) snapshotEnabled() bool {
+	return m.snapshot != nil;
+}
+
+func (m *ChronoTable) aofEnabled() bool {
+	return m.aof != nil;
+}
+
+func (m * ChronoTable) handleInputOpts(inputOpts ...InputOpts) InputOpts {
+	var isReplayed bool = false;
+	if len(inputOpts) == 1  {
+		isReplayed = inputOpts[0].IsReplayed
+	}
+return InputOpts{
+	IsReplayed: isReplayed,
+}
+}
+func (m * ChronoTable) populate(operations []*aof.Operation) {
+
+	for _, operation := range operations {
+		if operation.OperationType == aof.PutOp {
+			m.Put(operation.Key, operation.Value, InputOpts{
+				IsReplayed: true,
+			})
+		} else if operation.OperationType == aof.DeleteOp {
+			m.Delete(operation.Key, InputOpts{
+				IsReplayed: true,
+			})
+		}
+	}
+}

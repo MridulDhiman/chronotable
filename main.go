@@ -46,18 +46,15 @@ func main() {
 		}
 		fmt.Println("latest version: ", latestVersion)
 		fmt.Println("current version: ", currentVersion)
-		if currentVersion != 0 {
 			if err := table.ReplayOnRestart(currentVersion, latestVersion); err != nil {
 				log.Fatal("(error) could not replay writes: ", err)
 			}
-		}
 	}
 
-
-	table.Put("key1", "hello");
-	table.Put("key2", "hello2");
-	table.Put("key3", "hello3");
-	table.Commit();
-	table.Put("key4", "hello4");
-	table.Commit();
+	// table.Put("key1", "hello");
+	// table.Put("key2", "hello2");
+	// table.Put("key3", "hello3");
+	// table.Commit();
+	// table.Put("key1", "hello1");
+	table.List()
 }
