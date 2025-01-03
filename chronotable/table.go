@@ -42,7 +42,7 @@ type ChronoTable struct {
 func New(opts *Options) *ChronoTable {
 	t := &ChronoTable{
 		M:             make(map[string]interface{}),
-		ConfigHandler: config.NewConfigHandler(opts.Mode),
+		ConfigHandler: config.NewConfigHandler(),
 		logger:        opts.Logger,
 	}
 

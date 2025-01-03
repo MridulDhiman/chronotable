@@ -35,7 +35,6 @@ func main() {
 		EnableSnapshot: true,
 		Initialized: initialized,
 		Logger: logger,
-		Mode: "local",
 	})
 	
 	if initialized {
