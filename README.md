@@ -9,5 +9,5 @@ in-memory hash table implementation with AOF persistence and versioning via poin
 - Versioning to support rollbacks and querying past states.
 - Replay writes in case of crash
 - Start from latest state in case of restart
-- Viper based local and remote configuration management 
+- Viper based configuration management 
 
