@@ -11,3 +11,5 @@ in-memory hash table implementation with AOF persistence and versioning via poin
 - Start from latest state in case of restart
 - Viper based configuration management 
 
+### Workflow 
+![alt text](image.png)
