@@ -24,6 +24,7 @@ type Version struct {
 	Timestamp time.Time
 	Data      map[string]interface{}
 	Path      string
+	Prev int64
 }
 
 func New() *SnapShot {
@@ -49,6 +50,8 @@ func (snapshot *SnapShot) Create(m map[string]any,  configHandler *config.Config
 	if err != nil {
 		return nil, err
 	}
+
+	newSnapshot.Prev = snapshot.CurrentVersion
 	snapshot.CurrentVersion = newSnapshot.Id
 	configHandler.UpdateConfigFile(newSnapshot.Id)
 	snapshot.LatestVersion = newSnapshot.Id
