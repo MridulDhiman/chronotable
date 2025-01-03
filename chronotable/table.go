@@ -144,7 +144,9 @@ func (m *ChronoTable) Timetravel(version int64) {
 			m.Clear()
 			m.Copy(desiredVersion.Data)
 			m.snapshot.CurrentVersion = version
-			m.ConfigHandler.UpdateConfigFile(version)
+			m.ConfigHandler.Set(config.ConfigKeyCurrVersion, version)
+			// TODO: add way to handle uncommitted/staged entities
+			m.aof.Clear()
 		}
 	}
 }

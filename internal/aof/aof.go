@@ -95,8 +95,8 @@ func (aof *AOF) MustReplay() []*Operation {
 	return operations
 }
 
-// Reference: https://stackoverflow.com/questions/25534857/truncating-open-os-file-access-denied
-// clears the AOF log upon commit
+// Reference: https://stackoverflow.com/questions/25534857/truncating-open-os-file-access-denied.
+// Clears the AOF log upon commit or time travel
 func (aof *AOF) Clear() error {
 	if err := aof.File.Close(); err != nil {
 		return err
