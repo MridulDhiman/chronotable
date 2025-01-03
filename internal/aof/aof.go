@@ -41,35 +41,35 @@ func New(_path string, initialized bool) *AOF {
 	}
 }
 
-func (aof *AOF) Log(operation string)  {
+func (aof *AOF) Log(operation string) {
 	fmt.Println("operation: ", operation)
 
-	loggerChan := make(chan bool, 1);
+	loggerChan := make(chan bool, 1)
 
 	// TODO: handle updating the bufio writer  better way
-	go func () {
-	    flags := os.O_WRONLY | os.O_APPEND|os.O_APPEND
+	go func() {
+		flags := os.O_WRONLY | os.O_APPEND
 		file, err := os.OpenFile(aof.MainPath, flags, fs.FileMode(0777))
-	if err != nil {
-		log.Fatal("Could not open file: ", err)
-	}
+		if err != nil {
+			log.Fatal("Could not open file: ", err)
+		}
 		aof.Writer = bufio.NewWriter(file)
 		if _, err := aof.Writer.WriteString(operation + "\n"); err != nil {
 			fmt.Println("could not write to file")
-			 panic(err)
+			panic(err)
 		}
-	
+
 		if err := aof.Writer.Flush(); err != nil {
 			panic(err)
 		}
-	
-		if err:= aof.File.Sync(); err != nil {
+
+		if err := aof.File.Sync(); err != nil {
 			panic(err)
 		}
 		loggerChan <- true
 	}()
 
-	<- loggerChan
+	<-loggerChan
 }
 
 // Scan AOF line by line

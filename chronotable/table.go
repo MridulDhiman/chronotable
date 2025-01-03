@@ -7,11 +7,26 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
+
 	"github.com/MridulDhiman/chronotable/config"
 	"github.com/MridulDhiman/chronotable/internal/aof"
 	"github.com/MridulDhiman/chronotable/internal/decoder"
 	"github.com/MridulDhiman/chronotable/internal/snapshot"
 )
+
+// TODO: implement builder pattern in chronotable
+type IChronoTable interface {
+	Get(key string) (interface{}, bool)
+	Put(key string, value interface{}, options ...InputOpts)
+	Delete(key string, options ...InputOpts)
+	Len() int
+	Clear()
+	Copy(m2 map[string]any)
+	Commit() *snapshot.Version
+	Timetravel(version int64)
+	List()
+	ReplayOnRestart(currentVersion, latestVersion int64) error
+}
 
 type ChronoTable struct {
 	// TODO: make it private
@@ -23,7 +38,6 @@ type ChronoTable struct {
 	ConfigHandler *config.ConfigHandler
 	logger        *log.Logger
 }
-
 
 func New(opts *Options) *ChronoTable {
 	t := &ChronoTable{
@@ -57,7 +71,7 @@ func (m *ChronoTable) Get(key string) (interface{}, bool) {
 func (m *ChronoTable) Put(key string, value interface{}, options ...InputOpts) {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
-	inputOpts:= m.handleInputOpts(options...)
+	inputOpts := m.handleInputOpts(options...)
 	if m.aof != nil && !inputOpts.IsReplayed {
 		m.aof.Log(aof.MustFormat(key, value, aof.PutOp))
 	}
@@ -67,9 +81,13 @@ func (m *ChronoTable) Put(key string, value interface{}, options ...InputOpts) {
 func (m *ChronoTable) Delete(key string, options ...InputOpts) {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
-	inputOpts:= m.handleInputOpts(options...)
+	if _, ok := m.M[key]; !ok {
+		return
+	}
+
+	inputOpts := m.handleInputOpts(options...)
 	if m.aof != nil && !inputOpts.IsReplayed {
-		m.aof.Log(aof.MustFormat(key, nil, aof.DeleteOp))
+		m.aof.Log(aof.MustFormat(key, m.M[key], aof.DeleteOp))
 	}
 	delete(m.M, key)
 }
@@ -96,8 +114,8 @@ func (m *ChronoTable) Copy(m2 map[string]any) {
 }
 
 // if snapshot configured in chronotable,
-// creates new snapshot from current state of the hash table, 
-// clears the log, else returns nil 
+// creates new snapshot from current state of the hash table and
+// clears the log, else returns nil.
 func (m *ChronoTable) Commit() *snapshot.Version {
 	if m.snapshotEnabled() {
 		m.mtx.Lock()
@@ -107,11 +125,11 @@ func (m *ChronoTable) Commit() *snapshot.Version {
 			fmt.Println("Error in creating snapshot: ", err)
 			return nil
 		}
-		// TODO: handling properly if snapshot creation successful, but could not clear the log 
+		// TODO: handling properly if snapshot creation successful, but could not clear the log
 		if m.aofEnabled() {
 			if err := m.aof.Clear(); err != nil {
-					fmt.Println("Error in clearing log: ", err)
-					return nil
+				fmt.Println("Error in clearing log: ", err)
+				return nil
 			}
 		}
 		return newSnapShot
@@ -136,7 +154,6 @@ func (m *ChronoTable) List() {
 		fmt.Printf("Key: %s, Value: %v\n", k, v)
 	}
 }
-
 
 // Fetch Latest Snapshot file and return the desired version
 func (m *ChronoTable) ReplayOnRestart(currentVersion, latestVersion int64) error {
@@ -165,24 +182,24 @@ func (m *ChronoTable) ReplayOnRestart(currentVersion, latestVersion int64) error
 
 // ~~~ PRIVATE METHODS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 func (m *ChronoTable) snapshotEnabled() bool {
-	return m.snapshot != nil;
+	return m.snapshot != nil
 }
 
 func (m *ChronoTable) aofEnabled() bool {
-	return m.aof != nil;
+	return m.aof != nil
 }
 
-func (m * ChronoTable) handleInputOpts(inputOpts ...InputOpts) InputOpts {
-	var isReplayed bool = false;
-	if len(inputOpts) == 1  {
+func (m *ChronoTable) handleInputOpts(inputOpts ...InputOpts) InputOpts {
+	var isReplayed bool = false
+	if len(inputOpts) == 1 {
 		isReplayed = inputOpts[0].IsReplayed
 	}
-return InputOpts{
-	IsReplayed: isReplayed,
+	return InputOpts{
+		IsReplayed: isReplayed,
+	}
 }
-}
-func (m * ChronoTable) populate(operations []*aof.Operation) {
 
+func (m *ChronoTable) populate(operations []*aof.Operation) {
 	for _, operation := range operations {
 		if operation.OperationType == aof.PutOp {
 			m.Put(operation.Key, operation.Value, InputOpts{
